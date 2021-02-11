@@ -24,7 +24,7 @@ func CreateServer(hostName, basePath string) *server {
 
 	SRV.ValidateClientIDAndSecretID = func(clientID, secretID string) bool {
 		return clientID != "" && secretID != "" &&
-			SRV.Clients[clientID].SecretID == secretID
+			SRV.Clients[clientID].Secret == secretID
 	}
 
 	SRV.Discover = func() []byte {
@@ -98,18 +98,33 @@ func CreateServer(hostName, basePath string) *server {
 	})
 	http.HandleFunc(basePath+"/auth", func(w http.ResponseWriter, r *http.Request) {
 
-		client, valid := SRV.ValidateClientID(r.URL.Query().Get("client_id"))
+		s := Session{}
+		s.Load(w, r)
+		clientID := r.URL.Query().Get("client_id")
+
+		if clientID == "" {
+			clientID = s.ClientID
+		} else {
+			s.ClientID = clientID
+			s.Data = r.URL.Query().Encode()
+		}
+
+		client, valid := SRV.ValidateClientID(clientID)
+
 		if !valid {
 			NewUrl := hostName
 			http.Redirect(w, r, NewUrl, http.StatusSeeOther)
 			return
 		}
 
-		user := SRV.MiddleWare(r)
-		token := getToken(user, SRV.key+client.SecretID)
-		params, _ := url.ParseQuery(r.URL.Query().Encode())
+		user := SRV.MiddleWare(w, r, &s)
+		if user == "" {
+			return
+		}
+		s.Save(w, r)
+		token := getToken(user, SRV.key+client.Secret)
+		params, _ := url.ParseQuery(s.Data)
 		params.Set("code", token)
-
 		uri := client.CallBackURL + `?` + params.Encode()
 		http.Redirect(w, r, uri, http.StatusSeeOther)
 
@@ -125,14 +140,14 @@ func CreateServer(hostName, basePath string) *server {
 
 		token = strings.Split(token, "Bearer ")[1]
 
-		userTK, err := decode(token, SRV.key+"lala1234")
+		userTK, err := decode(token, SRV.key+"ggDjxBawQxUnEVeyUzFtpeR8MZQ0rmrQ")
 
 		fmt.Println(userTK, err)
 		if err != nil {
 			return
 		}
 
-		user := SRV.DecodeToken(userTK.ID)
+		user := SRV.GetUser(userTK.ID)
 		w.Write(user)
 		return
 	})

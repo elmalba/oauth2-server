@@ -4,7 +4,7 @@ import "net/http"
 
 type Client struct {
 	ClientID    string
-	SecretID    string
+	Secret      string
 	CallBackURL string
 }
 
@@ -12,10 +12,9 @@ type server struct {
 	Clients                     map[string]*Client
 	GenerateCode                func(string) string
 	DecodeCode                  func(string) string
-	MiddleWare                  func(*http.Request) string
-	FindUser                    func(string) []byte
+	MiddleWare                  func(http.ResponseWriter, *http.Request, *Session) string
+	GetUser                     func(string) []byte
 	GenerateToken               func(string, string) string
-	DecodeToken                 func(string) []byte
 	Discover                    func() []byte
 	ValidateClientID            func(string) (*Client, bool)
 	ValidateClientIDAndSecretID func(string, string) bool

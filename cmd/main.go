@@ -13,11 +13,11 @@ func main() {
 
 	client := oauth2.Client{}
 	client.ClientID = "1234"
-	client.SecretID = "lala1234"
+	client.Secret = "lala1234"
 	client.CallBackURL = "https://xn--ensea-rta.cl/md-eit/admin/oauth2callback.php"
 	srv.AddClient(&client)
 
-	srv.MiddleWare = func(r *http.Request) string {
+	srv.MiddleWare = func(w http.ResponseWriter, r *http.Request) string {
 		return "1"
 	}
 
