@@ -1,6 +1,6 @@
 package oauth2
 
-import "net/http"
+import "github.com/gin-gonic/gin"
 
 type Client struct {
 	ClientID    string
@@ -12,12 +12,12 @@ type server struct {
 	Clients                     map[string]*Client
 	GenerateCode                func(string) string
 	DecodeCode                  func(string) string
-	MiddleWare                  func(http.ResponseWriter, *http.Request, *Session) string
-	GetUser                     func(string) []byte
+	MiddleWare                  func(*gin.Context, *Session) string
+	GetUser                     func(*gin.Context, string) []byte
 	GenerateToken               func(string, string) string
 	Discover                    func() []byte
-	ValidateClientID            func(string) (*Client, bool)
-	ValidateClientIDAndSecretID func(string, string) bool
+	ValidateClientID            func(*gin.Context, string) (*Client, bool)
+	ValidateClientIDAndSecretID func(*gin.Context, string, string) bool
 	key                         string
 }
 

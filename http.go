@@ -6,23 +6,25 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func CreateServer(hostName, basePath string) *server {
-
+func CreateServer(hostName, basePath string) (*server, *gin.Engine) {
+	ws := gin.Default()
 	SRV := server{}
 	SRV.Clients = make(map[string]*Client)
 	uuidWithHyphen := uuid.New()
 	uuid := strings.Replace(uuidWithHyphen.String(), "-", "", -1)
 	SRV.SetKey(uuid)
 
-	SRV.ValidateClientID = func(clientID string) (*Client, bool) {
+	SRV.ValidateClientID = func(ctx *gin.Context, clientID string) (*Client, bool) {
 		return SRV.Clients[clientID], SRV.Clients[clientID] != nil
 	}
 
-	SRV.ValidateClientIDAndSecretID = func(clientID, secretID string) bool {
+	SRV.ValidateClientIDAndSecretID = func(ctx *gin.Context, clientID, secretID string) bool {
 		return clientID != "" && secretID != "" &&
 			SRV.Clients[clientID].Secret == secretID
 	}
@@ -80,59 +82,63 @@ func CreateServer(hostName, basePath string) *server {
 
 	}
 
-	http.HandleFunc(basePath+"/token", func(w http.ResponseWriter, r *http.Request) {
-		u, p, ok := r.BasicAuth()
+	ws.GET(basePath+"/token", func(ctx *gin.Context) {
+		user, passwd, ok := ctx.Request.BasicAuth()
 
-		body2, _ := ioutil.ReadAll(r.Body)
+		body2, _ := ioutil.ReadAll(ctx.Request.Body)
 
 		params, _ := url.ParseQuery(string(body2))
 
-		if !ok || !SRV.ValidateClientIDAndSecretID(u, p) {
-			w.WriteHeader(401)
+		if !ok || !SRV.ValidateClientIDAndSecretID(ctx, user, passwd) {
+			ctx.AbortWithStatus(401)
 			return
 		}
 
-		w.Write([]byte(`{"access_token":"` + params.Get("code") + `","scope":"all","token_type":"Bearer"}`))
+		ctx.String(200, (`{"access_token":"` + params.Get("code") + `","scope":"all","token_type":"Bearer"}`))
 
 		return
 	})
-	http.HandleFunc(basePath+"/auth", func(w http.ResponseWriter, r *http.Request) {
+	auth := func(ctx *gin.Context) {
 
 		s := Session{}
-		s.Load(w, r)
-		clientID := r.URL.Query().Get("client_id")
+		s.Load(ctx)
+		clientID := ctx.Request.URL.Query().Get("client_id")
 
 		if clientID == "" {
 			clientID = s.ClientID
 		} else {
 			s.ClientID = clientID
-			s.Data = r.URL.Query().Encode()
+			s.Data = ctx.Request.URL.Query().Encode()
 		}
 
-		client, valid := SRV.ValidateClientID(clientID)
+		client, valid := SRV.ValidateClientID(ctx, clientID)
 
 		if !valid {
 			NewUrl := hostName
-			http.Redirect(w, r, NewUrl, http.StatusSeeOther)
+			ctx.Redirect(http.StatusSeeOther, NewUrl)
 			return
 		}
 
-		user := SRV.MiddleWare(w, r, &s)
+		user, email := SRV.MiddleWare(ctx, &s)
 		if user == "" {
 			return
 		}
-		s.Save(w, r)
+		s.Save(ctx)
 		token := getToken(user, SRV.key+client.Secret)
 		params, _ := url.ParseQuery(s.Data)
 		params.Set("code", token)
 		uri := client.CallBackURL + `?` + params.Encode()
-		http.Redirect(w, r, uri, http.StatusSeeOther)
+		expiration := time.Now().Add(365 * 24 * time.Hour)
+		cookie := http.Cookie{Name: "ensena", Value: token, Expires: expiration}
+		ctx.SetCookie(cookie.Name, cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
+		ctx.Redirect(http.StatusTemporaryRedirect, uri)
+	}
+	ws.GET(basePath+"/auth", auth)
+	ws.POST(basePath+"/auth", auth)
 
-	})
+	ws.GET(basePath+"/userinfo", func(ctx *gin.Context) {
 
-	http.HandleFunc(basePath+"/userinfo", func(w http.ResponseWriter, r *http.Request) {
-
-		token := r.Header.Get("Authorization")
+		token := ctx.Request.Header.Get("Authorization")
 
 		if token == "" {
 			return
@@ -147,10 +153,10 @@ func CreateServer(hostName, basePath string) *server {
 			return
 		}
 
-		user := SRV.GetUser(userTK.ID)
-		w.Write(user)
+		user := SRV.GetUser(ctx, userTK.ID)
+		ctx.Writer.Write(user)
 		return
 	})
 
-	return &SRV
+	return &SRV, ws
 }

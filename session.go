@@ -4,18 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-session/session"
 )
 
 type Session struct {
 	ID       int
 	ClientID string
+	Email    string
 	Data     string
 }
 
-func (s *Session) Load(w http.ResponseWriter, r *http.Request) {
+func (s *Session) Load(ctx *gin.Context) {
+
+	r := ctx.Request
+	w := ctx.Writer
 	store, err := session.Start(context.Background(), w, r)
 	if err != nil {
 		fmt.Fprint(w, err)
@@ -27,8 +31,10 @@ func (s *Session) Load(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(b, &s)
 }
 
-func (s *Session) Save(w http.ResponseWriter, r *http.Request) {
+func (s *Session) Save(ctx *gin.Context) {
 
+	r := ctx.Request
+	w := ctx.Writer
 	store, err := session.Start(context.Background(), w, r)
 	if err != nil {
 		fmt.Fprint(w, err)
