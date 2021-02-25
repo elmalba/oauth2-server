@@ -11,6 +11,7 @@ import (
 
 type Session struct {
 	ID       int
+	Email    string
 	ClientID string
 	Data     string
 }

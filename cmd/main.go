@@ -16,11 +16,9 @@ func main() {
 	client.Secret = "lala1234"
 	client.CallBackURL = "https://xn--ensea-rta.cl/md-eit/admin/oauth2callback.php"
 	srv.AddClient(&client)
-
 	srv.MiddleWare = func(w http.ResponseWriter, r *http.Request) string {
 		return "1"
 	}
-
 	srv.DecodeToken = func(userID string) []byte {
 
 		fmt.Println("User : ", userID)

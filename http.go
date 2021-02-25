@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/elmalba/oauth2-server/jwt"
 	"github.com/google/uuid"
 )
 
@@ -112,7 +113,7 @@ func CreateServer(hostName, basePath string) *server {
 		client, valid := SRV.ValidateClientID(clientID)
 
 		if !valid {
-			NewUrl := hostName
+			NewUrl := hostName + basePath + "/login"
 			http.Redirect(w, r, NewUrl, http.StatusSeeOther)
 			return
 		}
@@ -122,7 +123,7 @@ func CreateServer(hostName, basePath string) *server {
 			return
 		}
 		s.Save(w, r)
-		token := getToken(user, SRV.key+client.Secret)
+		token := jwt.GetToken(user, s.Email, SRV.key)
 		params, _ := url.ParseQuery(s.Data)
 		params.Set("code", token)
 		uri := client.CallBackURL + `?` + params.Encode()
@@ -131,26 +132,19 @@ func CreateServer(hostName, basePath string) *server {
 	})
 
 	http.HandleFunc(basePath+"/userinfo", func(w http.ResponseWriter, r *http.Request) {
-
 		token := r.Header.Get("Authorization")
-
 		if token == "" {
 			return
 		}
-
 		token = strings.Split(token, "Bearer ")[1]
-
-		userTK, err := decode(token, SRV.key+"ggDjxBawQxUnEVeyUzFtpeR8MZQ0rmrQ")
-
+		userTK, err := jwt.Decode(token, SRV.key)
 		fmt.Println(userTK, err)
 		if err != nil {
 			return
 		}
-
 		user := SRV.GetUser(userTK.ID)
 		w.Write(user)
 		return
 	})
-
 	return &SRV
 }

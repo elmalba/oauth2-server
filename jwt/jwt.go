@@ -1,4 +1,4 @@
-package oauth2
+package jwt
 
 import (
 	"fmt"
@@ -6,14 +6,13 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-var JwtKey = []byte("3nS3nAM3")
-
 type userID struct {
-	ID string
+	ID    string
+	Email string
 	jwt.StandardClaims
 }
 
-func decode(authorization, key string) (userID, error) {
+func Decode(authorization, key string) (userID, error) {
 	user := userID{}
 	token, err := jwt.ParseWithClaims(authorization, &user, func(token *jwt.Token) (interface{}, error) {
 		return []byte(key), nil
@@ -28,10 +27,10 @@ func decode(authorization, key string) (userID, error) {
 	return user, nil
 }
 
-func getToken(user, key string) string {
-
+func GetToken(user, email, key string) string {
 	u := userID{}
 	u.ID = user
+	u.Email = email
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, u)
 	tokenString, _ := token.SignedString([]byte(key))
 	return tokenString
