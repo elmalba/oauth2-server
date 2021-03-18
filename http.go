@@ -8,7 +8,11 @@ import (
 	"strings"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/gin-gonic/gin"
+=======
+	"github.com/elmalba/oauth2-server/jwt"
+>>>>>>> 6ea51b744c9f2eb735677d1f4b90ccc63d42ed6a
 	"github.com/google/uuid"
 )
 
@@ -119,12 +123,13 @@ func CreateServer(hostName, basePath string) (*server, *gin.Engine) {
 			return
 		}
 
-		user, email := SRV.MiddleWare(ctx, &s)
+		user := SRV.MiddleWare(ctx, &s)
 		if user == "" {
 			return
 		}
 		s.Save(ctx)
-		token := getToken(user, SRV.key+client.Secret)
+
+		token := jwt.GetToken(user, s.Email, SRV.key)
 		params, _ := url.ParseQuery(s.Data)
 		params.Set("code", token)
 		uri := client.CallBackURL + `?` + params.Encode()
@@ -143,11 +148,8 @@ func CreateServer(hostName, basePath string) (*server, *gin.Engine) {
 		if token == "" {
 			return
 		}
-
 		token = strings.Split(token, "Bearer ")[1]
-
-		userTK, err := decode(token, SRV.key+"ggDjxBawQxUnEVeyUzFtpeR8MZQ0rmrQ")
-
+		userTK, err := jwt.Decode(token, SRV.key)
 		fmt.Println(userTK, err)
 		if err != nil {
 			return
