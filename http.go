@@ -8,11 +8,8 @@ import (
 	"strings"
 	"time"
 
-<<<<<<< HEAD
-	"github.com/gin-gonic/gin"
-=======
 	"github.com/elmalba/oauth2-server/jwt"
->>>>>>> 6ea51b744c9f2eb735677d1f4b90ccc63d42ed6a
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
@@ -86,7 +83,7 @@ func CreateServer(hostName, basePath string) (*server, *gin.Engine) {
 
 	}
 
-	ws.GET(basePath+"/token", func(ctx *gin.Context) {
+	ws.POST(basePath+"/token", func(ctx *gin.Context) {
 		user, passwd, ok := ctx.Request.BasicAuth()
 
 		body2, _ := ioutil.ReadAll(ctx.Request.Body)

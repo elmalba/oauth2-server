@@ -13,7 +13,6 @@ type Session struct {
 	ID       int
 	Email    string
 	ClientID string
-	Email    string
 	Data     string
 }
 
